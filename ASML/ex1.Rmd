@@ -1,0 +1,221 @@
+---
+title: "ASML Evaluation ex1"
+author: "Sophie Gallet"
+date: "1/20/2020"
+output: html_document
+---
+# Exercise 1 
+
+## Exploratory Data Analysis
+```{r}
+# Load libraries
+library(rpart)
+library(tidyverse)
+library(glmnet)
+library(caret)
+library(olsrr)
+```
+
+```{r}
+procespin <- read.delim("~/Document/Learn/Data Science/DSTI/ASML/Evaluation/procespin.txt")
+Y=log(procespin[,1])
+X=procespin[,2:11]
+
+data = cbind(Y, X)
+```
+
+
+```{r}
+# First look at data
+dim(data)
+head(data)
+tail(data)
+summary(data)
+```
+
+```{r}
+# Look at the relationships between the variables 
+panel.cor <- function(x, y, digits = 2, prefix = "", cex.cor, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(0, 1, 0, 1))
+    r <- abs(cor(x, y))
+    txt <- format(c(r, 0.123456789), digits = digits)[1]
+    txt <- paste0(prefix, txt)
+    if(missing(cex.cor)) cex.cor <- 0.8/strwidth(txt)
+    text(0.5, 0.5, txt, cex = cex.cor * r)
+}
+panel.hist <- function(x, ...)
+{
+    usr <- par("usr"); on.exit(par(usr))
+    par(usr = c(usr[1:2], 0, 2) )
+    h <- hist(x, plot = FALSE)
+    breaks <- h$breaks; nB <- length(breaks)
+    y <- h$counts; y <- y/max(y)
+    rect(breaks[-nB], 0, breaks[-1], y, col = "aquamarine4", ...)
+}
+df = cbind(Y,X)
+pairs(df, pch = 19, lower.panel = panel.smooth, upper.panel = panel.cor, diag.panel=panel.hist)
+```
+
+## Candidate models
+
+```{r}
+# Define training control for cross validation
+set.seed(123)
+train.control <- trainControl(number = 5, method="repeatedcv", repeats = 3)
+
+# Define a train, test split for validation
+# Random sample indexes
+train_index <- sample(1:nrow(X), 0.8 * nrow(X))
+test_index <- setdiff(1:nrow(X), train_index)
+
+# Build X_train, y_train, X_test, y_test
+X_train <- X[train_index,]
+y_train <- Y[train_index]
+data_train <- data[train_index,]
+
+X_test <- X[test_index,]
+y_test <- Y[test_index]
+data_test <- data[test_index,]
+```
+
+```{r}
+# Keep track of model performance
+save_metrics <- function(results){
+  row = c(results$RMSE, results$Rsquared, results$RMSESD, results$RsquaredSD)
+}
+```
+
+
+### Full Model 
+
+```{r}
+# Full model
+full_mod <- train(Y ~., data = data, method = "lm",
+               trControl = train.control)
+# Summarize the results
+print(full_mod)
+print(full_mod$results)
+
+# Save metrics
+full_res = save_metrics(full_mod$results)
+```
+
+```{r}
+plot(full_mod$finalModel)
+```
+
+### Stepwise selection with AIC
+
+```{r}
+full_selection <- ols_step_best_subset(lm(Y~., data))
+full_selection
+```
+```{r}
+plot(full_selection)
+```
+
+
+```{r}
+# Using backward selection with AIC criterion
+aic_mod <- train(Y ~., data = data, method = "lmStepAIC",
+               trControl = train.control, trace=FALSE)
+print(aic_mod)
+print(aic_mod$results)
+print(aic_mod$finalModel)
+plot(aic_mod$finalModel)
+aic_res = save_metrics(aic_mod$results)
+```
+
+### PCA
+
+```{r}
+# Principal Component Analysis
+pca_mod <- train(Y ~., data = data, method = "pcr",
+               trControl = train.control)
+print(pca_mod)
+print(pca_mod$results)
+print(pca_mod$results[2,])
+plot(pca_mod$finalModel)
+pca_res <- save_metrics(pca_mod$results[2,])
+```
+
+
+### Ridge and Lasso
+
+```{r}
+# Ridge regression with variable selection 
+ridge_mod <- train(Y ~., data = data, method = "foba",
+               trControl = train.control)
+print(ridge_mod) 
+print(ridge_mod$results) 
+```
+```{r}
+plot(ridge_mod)
+```
+
+
+```{r}
+ridge_res <- save_metrics(ridge_mod$results[9,])
+```
+
+```{r}
+# Lasso regression with variable selection 
+lasso_mod <- train(Y ~., data = data, method = "lasso",
+               trControl = train.control)
+print(lasso_mod)
+print(lasso_mod$results)
+```
+
+```{r}
+lasso_res <- save_metrics(lasso_mod$results[2,])
+```
+
+```{r}
+plot(lasso_mod)
+plot(lasso_mod$finalModel)
+```
+
+### CART & Random Forests
+
+```{r}
+# Rpart
+rpart_mod <- train(Y ~., data = data, method = "rpart",
+               trControl = train.control)
+print(rpart_mod)
+print(rpart_mod$results)
+```
+```{r}
+rpart_res <- save_metrics(rpart_mod$results[2,])
+plot(rpart_mod)
+```
+
+
+
+```{r}
+# rf 
+rf_mod <- train(Y ~., data = data, method = "rf",
+               trControl = train.control)
+print(rf_mod$finalModel)
+rf_mod$results
+```
+```{r}
+rf_res <- save_metrics(rf_mod$results[1,])
+plot(rf_mod)
+plot(rf_mod$finalModel)
+```
+
+
+## Comparison
+
+```{r}
+res_summary = rbind(full_res, aic_res, pca_res, ridge_res, lasso_res, rpart_res, rf_res)
+colnames(res_summary) = c("RMSE", "R2", "RMSE SD", "R2 SD")
+
+res_summary[order(res_summary[,"RMSE"], decreasing=F),] 
+```
+
+
+
+

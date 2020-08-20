@@ -1,0 +1,369 @@
+---
+title: "ASML Evaluation ex2"
+author: "Sophie Gallet"
+date: "1/20/2020"
+output: html_document
+---
+
+# Modeling Real Estate Pricing
+
+## Introduction
+
+```{r load, message = FALSE}
+load("ames_train.Rdata")
+```
+
+```{r packages, message = FALSE}
+library(statsr)
+library(dplyr)
+library(BAS)
+library(kableExtra)
+library(ggplot2)
+library(MASS)
+library(olsrr)
+
+# Helper function
+get_rmse <- function(mod, data){
+  predictions <- exp(predict(mod, data))
+  residuals <- data$price - predictions
+  rmse <- sqrt(mean(residuals**2))
+}
+```
+
+* * *
+
+## Exploratory Data Analysis (EDA)
+
+```{r}
+dim(ames_train)
+summary(ames_train)
+```
+
+```{r data-manipulation}
+#Keep only observations sold under normal conditions
+ames_train <- ames_train %>%
+  filter(Sale.Condition == "Normal")
+
+#Recode as a separate category NA values in Bsmt.Qual, BsmtFin.Type.1, BsmtFin.Type.2
+levels(ames_train$Bsmt.Qual) <- c(levels(ames_train$Bsmt.Qual),"no_bsmt")
+ames_train$Bsmt.Qual[is.na(ames_train$Bsmt.Qual)] <- "no_bsmt"
+
+levels(ames_train$BsmtFin.Type.1) <- c(levels(ames_train$BsmtFin.Type.1),"no_bsmt")
+ames_train$BsmtFin.Type.1[is.na(ames_train$BsmtFin.Type.1)] <- "no_bsmt"
+
+levels(ames_train$BsmtFin.Type.2) <- c(levels(ames_train$BsmtFin.Type.2),"no_bsmt")
+ames_train$BsmtFin.Type.2[is.na(ames_train$BsmtFin.Type.2)] <- "no_bsmt"
+
+#Recode as a separate category NA values in Garage.Qual
+levels(ames_train$Garage.Qual) <- c(levels(ames_train$Garage.Qual),"no_garage")
+ames_train$Garage.Qual[is.na(ames_train$Garage.Qual)] <- "no_garage"
+```
+
+
+```{r log_area}
+ames_train <- ames_train %>%
+  mutate(log_area = log(area),
+         log_price = log(price),
+         log_Lot.Area = log(Lot.Area))
+
+ames_train %>%
+  ggplot(aes(log_area,log_price, col = log_price)) + 
+  labs(title = "Log(Area) & Log(price)", x = "log(area)", y = "log(price)") + 
+  geom_smooth(method='lm',formula = y ~ x) + 
+  geom_point() +
+  theme_classic() + 
+  guides(col = FALSE) 
+```
+```{r overall_qual}
+ames_train %>%
+  group_by(factor(Overall.Qual)) %>%
+  mutate(median.price = median(price)) %>%
+  ggplot(aes(factor(Overall.Qual), price, fill = median.price)) + 
+  geom_boxplot() + 
+  theme_classic() +
+  labs(title = "Overall Quality & Price", x = "Overall Quality", y = "Price") +
+  guides(fill = FALSE) + 
+  scale_fill_gradient( low = "#D8F9FF", high = "#00A190") 
+```
+
+```{r neighborhood}
+ames_train %>%
+  group_by(Neighborhood) %>%
+  mutate(median.price = median(price)) %>%
+  ggplot(aes(Neighborhood, price, fill = median.price)) + 
+  labs(title = "Neighborhood & Price") + 
+  geom_boxplot() +
+  theme_classic() + 
+  guides(fill = FALSE) + 
+  coord_flip() +
+  scale_fill_gradient( low = "#D8F9FF", high = "#00A190") 
+```
+
+
+* * *
+
+## Initial model
+
+```{r fit_model}
+mod1 <- lm(log_price ~ log_area + log_Lot.Area + Overall.Qual + Neighborhood + Bedroom.AbvGr + Year.Built + Garage.Cars + Garage.Qual + X1st.Flr.SF + Bsmt.Qual,
+                   data = ames_train)
+summary(mod1)
+```
+
+### Variable Selection
+
+
+```{r}
+variable_selection <-ols_step_best_subset(mod1)
+variable_selection
+```
+
+```{r}
+plot(variable_selection)
+```
+
+
+```{r}
+mod2 <- lm(log_price ~ log_area + log_Lot.Area + Overall.Qual + Neighborhood + Year.Built + Garage.Qual + X1st.Flr.SF + Bsmt.Qual,
+                   data = ames_train)
+data2 <- subset(ames_train, select = c("log_price", "log_area", "log_Lot.Area", "Overall.Qual","Neighborhood", "Year.Built", "Garage.Qual", "X1st.Flr.SF", "Bsmt.Qual"))
+summary(mod2)
+```
+
+
+### Simple Model Residuals
+
+
+```{r}
+hist(mod2$residuals)
+plot(mod2)
+ggplot(data = mod2, aes(x = .fitted, y = .resid)) +
+  geom_point(col = ifelse(abs(mod2$residuals)> mean(mod2$residuals) +
+3*sd(mod2$residuals), "red", "black"), 
+            size = ifelse(abs(mod2$residuals)> mean(mod2$residuals) +
+3*sd(mod2$residuals), 2, 1)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals") +
+  theme_classic() 
+```
+
+
+
+
+```{r}
+data2$res2 <- mod2$residuals
+
+data2 %>%
+  arrange(desc(abs(mod2$residuals))) %>%
+  head(10)
+
+summary(data2$Year.Built)
+```
+
+
+### Initial Model RMSE
+
+```{r init_model_rmse_train}
+rmse.initial_train <- get_rmse(mod2, ames_train)
+c("Training RMSE ($)" = rmse.initial_train)
+```
+
+### Overfitting 
+
+The first chunk of code loads the test data and performs the same manipulations as done for the training data. 
+
+```{r loadtest}
+load("ames_test.Rdata")
+
+ames_test <- ames_test %>%
+  mutate(log_area = log(area),
+         log_price = log(price),
+         log_Lot.Area = log(Lot.Area))
+
+#Remove observation from Landmark Neighborhood (no such observations in training data), keep observations with normal sale conditions 
+ames_test <- ames_test %>%
+  filter(ames_test$Neighborhood != "Landmrk",
+         Sale.Condition == "Normal")
+
+#Recode as a separate category NA values in Bsmt.Qual, BsmtFin.Type.1,BsmtFin.Type.2
+levels(ames_test$Bsmt.Qual) <- c(levels(ames_test$Bsmt.Qual),"no_bsmt")
+ames_test$Bsmt.Qual[is.na(ames_test$Bsmt.Qual)] <- "no_bsmt"
+
+levels(ames_test$BsmtFin.Type.1) <- c(levels(ames_test$BsmtFin.Type.1),"no_bsmt")
+ames_test$BsmtFin.Type.1[is.na(ames_test$BsmtFin.Type.1)] <- "no_bsmt"
+
+levels(ames_test$BsmtFin.Type.2) <- c(levels(ames_test$BsmtFin.Type.2),"no_bsmt")
+ames_test$BsmtFin.Type.2[is.na(ames_test$BsmtFin.Type.2)] <- "no_bsmt"
+
+#Recode as a separate category NA values in Garage.Qual
+levels(ames_test$Garage.Qual)<- c(levels(ames_test$Garage.Qual),"no_garage")
+ames_test$Garage.Qual[is.na(ames_test$Garage.Qual)] <- "no_garage"
+
+```
+
+
+```{r init_model_rmse_test}
+rmse.initial_test<- get_rmse(mod2, ames_test)
+
+c("RMSE Test ($)" = rmse.initial_test, "RMSE Train ($)" = rmse.initial_train)
+```
+
+* * *
+
+## Final Model
+
+```{r}
+#Add interaction terms for garage
+ames_train <- ames_train %>%
+  mutate(Garage = Garage.Cars * Garage.Area,
+         Bath = Full.Bath * Half.Bath) #used in full model, discarded for final model
+ames_test <- ames_test %>%
+  mutate(Garage = Garage.Cars * Garage.Area,
+         Bath = Full.Bath * Half.Bath) #used in full model, discarded for final model
+
+# "Big" model (20 variables)
+big.model <- lm(log_price ~ log_area + log_Lot.Area + BsmtFin.Type.1 + log(Total.Bsmt.SF+1) + log(BsmtFin.SF.1+1) + Bsmt.Qual + Overall.Qual + Neighborhood + Year.Built + Year.Remod.Add + Bath + Garage.Qual + Garage + Exter.Qual + Bldg.Type + Central.Air, 
+                  data = ames_train)
+
+#Final model & summary
+final.model <- lm(log_price ~ log_area + log_Lot.Area + BsmtFin.Type.1 + log(Total.Bsmt.SF + 
+    1)  + Overall.Qual + Neighborhood + Year.Built + Year.Remod.Add + Garage + Exter.Qual + 
+    Central.Air, 
+                  data = ames_train)
+summary(final.model)
+```
+
+
+### Transformation
+
+```{r model_assess}
+par(mfrow = c(2,2))
+hist(ames_train$price, main = "Histogram of price", xlab = "price")
+hist(ames_train$area, breaks = 20, main = "Histogram of area", xlab = "area")
+hist(ames_train$Lot.Area, breaks = 50, main = "Histogram of Lot.Area", xlab = "Lot.Area")
+hist(ames_train$Total.Bsmt.SF, main = "Histogram of Total.Bsmt.SF", xlab = "Total.Bsmt.SF")
+```
+
+
+### Variable Interaction
+
+```{r model_inter}
+plot(ames_train$Garage.Cars, ames_train$Garage.Area, xlab = "Garage.Cars", ylab = "Garage.Area")
+```
+
+* * *
+
+### Variable Selection
+
+
+```{r model_select}
+model.aic <- stepAIC(big.model, trace=F, direction="both")
+#summary(big.model)
+summary(model.aic)
+```
+
+### Model Testing
+
+```{r model_testing}
+
+# AIC model - train data
+rmse.aic_train <- get_rmse(model.aic, ames_train)
+# AIC model - test data
+rmse.aic_test <- get_rmse(model.aic, ames_test)
+
+# Final model - train data
+rmse.final_train <- get_rmse(final.model, ames_train)
+# Final model - test data
+rmse.final_test <- get_rmse(final.model, ames_test)
+
+
+c("RMSE Summary")
+c("AIC Test ($)" = rmse.aic_test, "AIC Train ($)" = rmse.aic_train, "% difference" = round((1 - rmse.aic_train/rmse.aic_test)*100,2))
+c("Final Test ($)" = rmse.final_test, "Final Train ($)" = rmse.final_train, "% difference" = round((1 - rmse.final_train/rmse.final_test)*100,2))
+
+#Coverage Probabilities
+# Predict prices - Test
+predict.test <- exp(predict(final.model, ames_test, interval = "prediction"))
+
+# Calculate proportion of observations that fall within prediction intervals - Test
+coverage.prob.test <- mean(ames_test$price > predict.test[,"lwr"] &
+                            ames_test$price < predict.test[,"upr"])
+
+# Predict prices - Train
+predict.train <- exp(predict(final.model, ames_train, interval = "prediction"))
+
+# Calculate proportion of observations that fall within prediction intervals - Train
+coverage.prob.train <- mean(ames_train$price > predict.train[,"lwr"] &
+                            ames_train$price < predict.train[,"upr"])
+
+c("Coverage Probability test" = coverage.prob.test, "Coverage Probability train" = coverage.prob.train)
+```
+
+* * *
+
+## Final Model Assessment
+
+### Final Model Residuals
+
+```{r final_residual_plot}
+ggplot(data = final.model, aes(x = .fitted, y = .resid)) +
+  geom_point(col = ifelse(abs(final.model$residuals)> mean(final.model$residuals) +
+3*sd(final.model$residuals), "red", "black"), 
+            size = ifelse(abs(final.model$residuals)> mean(final.model$residuals) +
+3*sd(final.model$residuals), 2, 1)) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  xlab("Fitted values") +
+  ylab("Residuals") +
+  theme_classic() 
+```
+
+### Final Model RMSE
+
+```{r final_model_testing}
+#Display RMSE (already calculated
+c("RMSE Test ($)" = rmse.final_test, "RMSE Train ($)" = rmse.final_train)
+```
+
+### Final Model Validation
+
+```{r loadvalidation, message = FALSE}
+load("ames_validation.Rdata")
+```
+
+
+```{r model_validate}
+#Data Manipulation on Validation data
+#Keep observations with normal sale conditions 
+ames_validation <- ames_validation %>%
+  filter(Sale.Condition == "Normal") %>%
+  mutate(log_area = log(area),
+         log_price = log(price),
+         log_Lot.Area = log(Lot.Area))
+
+#Recode as a separate category NA values in BsmtFin.Type.1
+levels(ames_validation$BsmtFin.Type.1) <- c(levels(ames_validation$BsmtFin.Type.1),"no_bsmt")
+ames_validation$BsmtFin.Type.1[is.na(ames_validation$BsmtFin.Type.1)] <- "no_bsmt"
+
+#Create Garage tnteraction term
+ames_validation <- ames_validation %>%
+  mutate(Garage = Garage.Cars * Garage.Area)
+
+
+
+# RMSE Validation data
+rmse.final_val <- get_rmse(final.model, ames_validation)
+c("RMSE Val" = rmse.final_val, "RMSE Test" = rmse.final_test, "RMSE Train" = rmse.final_train) 
+
+
+#Coverage Probability
+# Predict prices
+predict.val <- exp(predict(final.model, ames_validation, interval = "prediction"))
+
+# Calculate proportion of observations that fall within prediction intervals
+coverage.prob.val <- mean(ames_validation$price > predict.val[,"lwr"] &
+                            ames_validation$price < predict.val[,"upr"])
+c("Coverage Probability" = coverage.prob.val)
+```
+
+* * *

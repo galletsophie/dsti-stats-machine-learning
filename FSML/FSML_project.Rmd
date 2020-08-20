@@ -1,0 +1,405 @@
+---
+title: "FSML_project"
+author: "Sophie Gallet"
+date: "2019"
+output: html_document
+---
+# FSML Project
+
+```{r}
+library(kableExtra)
+```
+
+## Exercise 1 
+1. Let $X ∼ N (−1, \sigma^2 = 0.01)$. Compute 
+- P (X ≤ −0.98)
+- P (X ≤ −1.02)
+- P (X ≥ −0.82)
+- P (X ∈ [−1.22; −0.96])
+
+```{r}
+tbl1 <- cbind("P(X≤−0.98)" = pnorm(-0.98, mean = -1, sd = sqrt(0.01)),
+              "P(X≤−1.02)" = pnorm(-1.02, mean = -1, sd = sqrt(0.01)), 
+              "P(X≥−0.82)" = 1 - pnorm(-0.82, mean = -1, sd = sqrt(0.01)),
+              "P(X∈[−1.22; −0.96])" = pnorm(-0.96, mean = -1, sd = sqrt(0.01)) - pnorm(-1.22, mean = -1, sd = sqrt(0.01)))
+
+kable(tbl1)%>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = F)
+```
+
+2. Let $X ∼ N (0,1). Determine t such that
+- P (X ≤ t) = 0.9
+- P (X ≤ t) = 0.2
+- P (X ∈ [−t, t]) = 0.95
+
+```{r}
+
+# For the 3rd point: Due to the symmetry of the normal distribution, we have P(X≤-t) = P(X≥t) 
+# As P(X≥t) = 1 - P(X≤t), we get P(X∈[−t, t]) = P(X≤t) - P(X≤-t) = 2P(X≤t) - 1
+# As a result, P(X∈[−t, t]) = 0.95 <=> P(X ≤ t) = (1+0.95)/2
+
+tbl2 <- cbind("t / P(X≤t) = 0.9" =qnorm(0.9),
+              "t / P(X≤t) = 0.2" = qnorm(0.2),
+              "t / P(X∈[−t,t]) = 0.95" = qnorm((1+0.95)/2))
+
+kable(tbl2)%>%
+  kable_styling(bootstrap_options = c("striped","condensed"),full_width = F)
+```
+
+## Exercise 2
+### (a) Definition of a density function  
+A function f is a density function of the continuous random variable X if:
+
+- It is defined on R
+
+- $∀x∈R, f(x)≥0$
+
+- $∀a∈R, b∈R, a<b, P(X∈[a,b]) = \int_{a}^{b}f(x) dx$
+
+The probability density function is the derivative of the distribution function for a continuous distribution. 
+
+Note that we have $\int_{-∞}^{+∞}f(x) dx=1$
+
+### (b) Definition of an unbiased estimator
+Let $\theta_n$ an estimator of a parameter $\theta$, i.e. a function of $X_1, .., X_n:$
+$\theta_n = f(X_1, .., X_n)$. 
+
+We say that $\theta_n$ is an unbiased estimator of $\theta$ if 
+$∀n∈N^*, 𝔼[θ_n] =\theta$
+
+### (c) Expectation & variance of the empirical mean
+Let $X_1, .., X_n$ a n-sample. We denote $\mu$ the expectation of $X_1$ and $\sigma^2$ its variance. Let $\overline{X_n}$ be the associated empirical mean. 
+Compute the expectation and variance of  $\overline{X_n}$.
+
+First,  $X_1, .., X_n$ being a n-sample means that  $X_1, .., X_n$ are independent and identically distributed (iid) random variables. 
+
+- Expectation
+
+The empirical mean is an unbiased estimator of $\mu$ and thus we have $E[\overline{X_n}] = \mu$. 
+
+(**proof**: First it is a function of a function of $X_1, .., X_n and $E[\overline{X_n}] =E[\frac{1}{n}\sum_{i=1}^{n}{X_i}] =\frac{1}{n}\sum_{i=1}^{n} E[X_i]$.
+
+As the $X_i$ are identically distributed and $E[X_1]=\mu$, we have: 
+$E[\overline{X_n}] = \frac{1}{n}\sum_{i=1}^{n} \mu = \mu$)
+
+- Variance
+
+$Var[\overline{X_n}] = Var[\frac{1}{n}\sum_{i=1}^{n}{X_i}]  = \frac{1}{n^2}Var[\sum_{i=1}^{n}{X_i}]$.
+
+As the $X_i$ are independent, $Var[\sum_{i=1}^{n}{X_i}] = \sum_{i=1}^{n}Var[{X_i}]$ 
+
+As $Var[X_1]=\sigma^2$ and the $X_i$ are identically distributed, $Var[\overline{X_n}] = \frac{1}{n^2} \sum_{i=1}^{n}\sigma^2 = \frac{\sigma^2}{n}$. 
+
+---
+
+**Summary**
+
+$$E[\overline{X_n}] = \mu, Var[\overline{X_n}] = \frac{\sigma^2}{n}$$
+
+---
+
+### (d) Unbiased estimator of $\sigma^2$
+Let $X_1, .., X_n$ a n-sample with a $N(\mu, \sigma^2)$ distribution. Give an unbiased estimator of $\sigma^2$ when we assume that $\mu$ is unknow. Prove it is unbiased.
+
+---
+
+$s_n^2$ is an unbiased estimator of $\sigma^2$, with:
+
+$$s_n^2 = \frac{1}{n-1}\sum_{i=1}^{n}(X_i - \overline{X_n})^2$$
+
+---
+
+**Proof**
+
+Let  $s_n^2 = \frac{1}{n-1}\sum_{i=1}^{n}(X_i - \overline{X_n})^2$.
+We want to prove that:
+
+* $s_n^2$ is an estimator of $\sigma^2$  
+
+* $s_n^2$ is an unbiased estimator of $\sigma^2$, i.e. $E[s_n^2]=\sigma^2$
+
+
+The first part is quick and easy: $s_n^2$ is a function of $X_1, .., X_n$ and thus an estimator of $\sigma^2$. 
+
+The second part is more complex: 
+
+Thanks to the linearity of the expected value, we have:
+$E[s_n^2] = E[\frac{1}{n-1}\sum_{i=1}^{n}(X_i - \overline{X_n})^2] = \frac{1}{n-1}\sum_{i=1}^{n}E[(X_i - \overline{X_n})^2]$
+
+We start with the expected value term inside the sum:
+
+$∀i, E[(X_i - \overline{X_n})^2] = E[(X_i - \mu + \mu - \overline{X_n})^2] = E[(X_i-\mu)^2 + 2(X_i-\mu)(\mu-\overline{X_n})+(\mu - \overline{X_n})^2]= E[(X_i-\mu)^2] + 2E[(X_i-\mu)(\mu-\overline{X_n})]+E[(\mu - \overline{X_n})^2]$
+
+Let's decompose this expression and tackle it one term at a time:
+
+$∀i$, let $a_i=E[(X_i-\mu)^2], b_i=E[(X_i-\mu)(\mu-\overline{X_n})],c = E[(\mu - \overline{X_n})^2]$, then we have 
+$∀i, E[(X_i - \overline{X_n})^2]=a_i+2b_i+c$
+
+
+* $a_i = E[(X_i-\mu)^2]$ 
+
+$∀i$, $a_i$ is the definition of the variance of $X_i$ thus $∀i, a_i = \sigma^2$
+
+
+* $b_i=E[(X_i-\mu)(\mu-\overline{X_n})]$
+
+$∀i, b_i = E[(X_i-\mu)(\mu-\overline{X_n})] = E[(X_i-\mu)(\frac{n}{n}\mu-\frac{1}{n}\sum_{k=1}^nX_k)]$
+
+As $\frac{n}{n}\mu = \frac{1}{n}\sum_{i=1}^n\mu$, and using the linearity of the expected value we get:
+
+$∀i, b_i=\frac{1}{n} E[(X_i-\mu)(\sum_{k=1}^n (\mu-X_k))] = \frac{1}{n}\sum_{k=1}^nE[(X_i-\mu) (\mu-X_k)]$
+
+For any i, we can distinguish between two cases in the sum:
+
+1) k=i, then:
+$E[(X_i-\mu) (\mu-X_k)] = -E[(X_k-\mu)^2]=-\sigma^2$
+
+2) k≠i, and then we have independence of $(X_i-\mu),(\mu-X_k)$ and we can use E[XY]=E[X]E[Y]:
+$E[(X_i-\mu) (\mu-X_k)] = E[(X_i-\mu)]E[(\mu-X_k)] = (E[X_i]-\mu)(\mu-E[X_k])=0$
+
+Hence, $∀i,\sum_{k=1}^nE[(X_i-\mu) (\mu-X_k)] = -\sigma^2$ and
+
+$∀i, b_i =  -\frac{\sigma^2}{n}$
+
+
+* $c=E[(\mu - \overline{X_n})^2]$
+
+$c = E[(\overline{X_n}-\mu)^2] = E[(\overline{X_n}-E[\overline{X_n}])^2]=Var[\overline{X_n}]=Var[\frac{1}{n}\sum_{i=1}^{n}X_i]$
+
+As the $X_i$ are all independent, and their variance is $\sigma^2$ we get: 
+$c = \frac{1}{n^2}\sum_{i=1}^{n}Var[X_i]=\frac{1}{n^2}\sum_{i=1}^{n}\sigma^2=\frac{\sigma^2}{n}$
+
+$c=\frac{\sigma^2}{n}$
+
+We can now circle back to our expected value term within the first sum:
+$∀i, E[(X_i - \overline{X_n})^2]=a_i+2b_i+c =  \sigma^2 - 2\frac{\sigma^2}{n}+\frac{\sigma^2}{n}=\frac{n-1}{n}\sigma^2$
+
+And finally we circle back to the full expression:
+
+$E[s_n^2] = \frac{1}{n-1}\sum_{i=1}^n E[(X_i - \overline{X_n})^2]= \frac{1}{n-1} \sum_{i=1}^n \frac{n-1}{n}\sigma^2 = \sigma^2$
+As $E[s_n^2] =\sigma^2$, $s_n^2$ is unbiased.
+
+We proved that $s_n^2$ is an unbiased estimator of $\sigma^2$.
+
+## Exercise 3
+We're considering the observations in the file dataexam.txt
+
+```{r}
+df = read.table('dataexam.txt')
+head(df)
+```
+```{r}
+n = length(df$V1)
+n
+```
+
+
+### (a) Test for uniform distribution
+
+Let's first plot the data
+
+```{r}
+hist(df$V1, freq=FALSE, main="Histogram of the data", xlab="t")
+```
+
+Let's compare this to a uniform distribution, with similar parameters (same number of points, same minimum and maximum)
+
+```{r}
+set.seed(1234) #for reproducible results
+par(mfrow=c(2,1))
+max_data = max(df$V1)
+min_data = min(df$V1)
+hist(df$V1, freq=FALSE, main="Histogram & density of the data", 
+     xlab='t', ylim=c(0,0.006))
+lines(density(df$V1), col='blue', lwd=2)
+u = runif(n, max = max_data, min = min_data)
+hist(u, freq=FALSE, main="Histogram & density of a uniform distribution", 
+     xlab='t',ylim=c(0,0.006))
+lines(density(u), col='blue', lwd=2)
+```
+
+The distributions are somewhat similar.
+Let's use a test to compare them.
+
+The Kolmogorov-Smirnov test tests whether the sample data (first argument) is drawn from the continous distribution provided in the second argument (with parameters for this latter distribution in the following arguments). 
+
+- The null hypothesis is that the sample data is drawn from the given distribution.
+- The alternative is that they are drawn from different continuous distributions. 
+
+Let's take $\alpha =0.05$ as our significance level. If we get a high p-value (higher than $\alpha$) we'll conclude it is likely to observe the data even if the null hypothesis were true, and hence we do not reject the null hypothesis.
+Otherwise, we say it would be very unlikely to observe the data were the null hypothesis true, and hence reject null hypothesis and accept the alternative. 
+
+```{r}
+# We use min_data, max_data to create a uniform distribution with similar parameters as our data
+ks.test(df$V1, "punif", min_data, max_data)
+```
+
+With a p-value of approximately 0.72 is it very likely to observe the data we have if the null hypothesis is true, and we do not reject the null hypothesis. We do not have convincing evidence that the alternative hypothesis is true.
+
+In context, we do not have convincing evidence that the distribution of our data is not from the uniform distribution with the given parameters. 
+
+**We accept the null hypothesis, saying that our data comes from the uniform distribution.**
+
+### (b) Modelize the distribution of the time between two events
+
+To modelize the time between two events, we'll use the diff function that "returns suitably lagged and iterated differences". 
+
+```{r}
+d = diff(df$V1) #time between two events in our data
+hist(d, freq=FALSE, main="Histogram of time between 2 events")
+```
+
+This looks like an exponential distribution. 
+
+### (c) Guess the value of the parameter and a confidence interval for it
+
+Let's guess the value of $\lambda$. 
+
+If X is an exponentially distributed random variable with rate $\lambda≠0$, then 
+$E[X]=\frac{1}{\lambda} <=> \lambda = \frac{1}{E[X]}$ and we also have
+$Var[X]=\frac{1}{\lambda^2}$
+
+```{r}
+e = mean(d) # Expected value
+l = 1/e # Potential lambda
+cat("Potential lambda: ",l, '\n')
+v = var(d) # Variance 
+cat("Variance: ",v, "\n1/lambda^2:", 1/l^2)
+```
+
+The variance of d is somewhat close to the value of $\frac{1}{\lambda^2}$. Let's plot the distribution of the times between events next to an exponential distribution with the newly found lambda: 
+
+```{r}
+par(mfrow=c(2,1))
+hist(d, freq=FALSE, main="Histogram & density of the time between 2 events", 
+     xlab='d', xlim=c(0,1.2))
+lines(density(d), col='blue', lwd=2)
+ex = rexp(n-1, rate=l)
+hist(ex, freq=FALSE, main="Histogram, density of an exp distribution, lambda ~= 8.12", 
+     xlab='d', xlim=c(0,1.2))
+lines(density(ex), col='blue', lwd=2)
+```
+
+We notice that both distributions look very similar.
+
+We've guessed the parameter $\lambda = 8.12186802964682$. Let's now provide a confidence interval for it.
+
+We'll be using the central limit theorem:
+Let $X_1, .., X_n$ be n independent random variables, with the same distribution. We assume 𝔼[X1] and V[X1] exist. 
+We denote $\mu = E[X]$ and $\sigma^2=V[X]$. 
+Then $\sqrt{n}\frac{\overline{X}-\mu}{\sigma} \to_LN(0,1)$ 
+
+In our case we're interested in exponential distributions with parameter lambda and thus $\mu = \frac{1}{\lambda},\sigma=\sqrt{\frac{1}{\lambda^2}}$
+
+We get
+$\sqrt{n}\frac{\overline{X}-\frac{1}{\lambda}}{\sqrt{\frac{1}{\lambda^2}}} \to_LN(0,1)$ 
+
+Which can be simplified to $\sqrt{n}(\lambda\overline{X}-1) \to_L N(0,1)$ 
+
+Let's define T such that $P(\sqrt{n}(\lambda\overline{X}-1) \in [-T, T]) = 1-\alpha$. 
+
+T is the fractile of $1-\frac{\alpha}{2}$.  
+
+Let's isolate $\lambda$ in the inequality. Note that both $\sqrt{n}$ and $\overline{X}$ are stricly positive.
+
+$P(-T\le\sqrt{n}(\lambda\overline{X}-1) \le T) = 1-\alpha$ 
+<=>
+$P(-\frac{T}{\sqrt{n}} \le \lambda\overline{X}-1 \le \frac{T}{\sqrt{n}}) = 1-\alpha$ 
+<=>
+
+$P(1-\frac{T}{\sqrt{n}} \le \lambda\overline{X} \le 1+\frac{T}{\sqrt{n}}) = 1-\alpha$ 
+<=>
+$P(\frac{1}{\overline{X}}(1-\frac{T}{\sqrt{n}}) \le \lambda \le \frac{1}{\overline{X}}(1+\frac{T}{\sqrt{n}})) = 1-\alpha$ 
+
+Let's choose $\alpha=0.05$
+```{r}
+alpha = 0.05
+T = qnorm(1-alpha/2)
+T
+```
+Let's now compute each side of the inequality:
+```{r}
+xbar = mean(d)
+n = n-1 #By doing the difference we lost 1 value
+left = 1/xbar*(1-T/sqrt(n))
+right = 1/xbar*(1+T/sqrt(n))
+
+cat("P(",left,"<= lambda <=",right,") =", 1-alpha)
+```
+
+**We are 95% confident that lambda is in the interval [7.726368,8.517368]. **
+
+We note that our estimated lambda (~8.12) is in the interval (and more precisely is the center of the interval). 
+
+
+## Exercise 4 
+X is a random variable whose distribution is exponential with parameter $\lambda>0$. 
+
+### (a) Prove that the exponential random variable is with no memory
+Prove $∀s,t>0, P(X >t+s|X >t)=P(X >s)$
+
+Let's first note that if X follows an exponential distribution of rate $\lambda>0$, then $∀x \ge 0, P(X \le x)= 1-e^{-\lambda x}$
+
+Using the conditional probability formula, and because $∀x \ge 0,P(X>x)=1-P(X \le x) = 1-(1-e^{-\lambda x})=e^{-\lambda x}≠0$ we get
+$∀s,t>0, P(X >t+s|X >t)=\frac{P((X >t+s)\bigcap (X >t))}{P(X>t)} = \frac{P(X >t+s)}{P(X>t)}$
+
+Let's now use the cumulative distribution function of an exponential random variable:
+$∀s,t>0, P(X >t+s|X >t)=\frac{e^{-\lambda (t+s)}}{e^{-\lambda t}} = e^{-\lambda (t+s-t)}=e^{-\lambda s}=P(X>s)$
+
+We just proved that $∀s,t>0, P(X >t+s|X >t)=P(X>s)$ meaning that the exponential random variable is with no memory.
+
+### (b) Determine the distribution of Y, Y = E[X]+1
+E[x] is the biggest integer smaller or equal to x - this is the floor function in R.
+
+```{r}
+x <- rexp(10000)
+y <- floor(x)+1
+hist(y, freq=FALSE, xlab = "E[X]+1", main = "Distribution of E[X]+1, X exponential R.V. of rate 1")
+lines(density(y), col='blue', lwd=2)
+
+```
+
+As Y = E[X]+1, Y takes strictly positive integer values. The support of Y is $N^*$. We're searching for a discrete distribution.
+
+$∀k∈N^*, P(Y=k) = P(E[X]+1=k)= P(E[X]=k-1)$
+
+Because E[X] represents the floor function, and  X is an exponential random variable of rate $\lambda$ we get: 
+
+$∀k∈N^*, P(Y=k)=P(E[X]=k-1) = P(k-1\le X <k) = \int_{k-1}^k \lambda e^{-\lambda x}dx = [-e^{-\lambda t}]_{k-1}^k$
+
+Hence we have 
+
+$∀k \in N^*, P(Y=k) = -e^{-\lambda k} + e^{-\lambda (k-1)} = (e^{-\lambda})^{k-1} (1-e^{-\lambda})$
+
+Let $p=1-e^{-\lambda}$ then as $\lambda>0, p\in]0,1[$ and $∀k∈N^*, P(Y=k)=(1-p)^{k-1}p$.
+
+We recognize the probability mass function of a **geometric distribution** with parameter $p=1-e^{-\lambda}, 0<p<1$, and with support $k \in N^*$
+
+A plot can help illustrate this finding. We'll take $\lambda=0.5$, and we'll get very similar looking plots: 
+
+```{r}
+# Define the parameters
+n = 10000
+l = .5
+p = 1-exp(-l)
+
+# Plot
+set.seed(1234) #for reproducible results
+par(mfrow=c(2,1))
+
+## Plot Y=E[X]+1
+x <- rexp(n, rate = l)
+y <- floor(x)+1
+hist(y, freq=FALSE, main="Histogram & density of E[X]+1", xlim = c(0,15))
+lines(density(y), col='blue', lwd=2)
+
+## Plot a geometric distribution
+geom <- 1 + rgeom(n,p) #in R, the geometric distribution has for support {0,1,2,..}
+hist(geom, freq=FALSE, main="Histogram & density of a geometric distribution", xlim = c(0,15))
+lines(density(geom), col='blue', lwd=2)
+```
+
+
+
+
+
